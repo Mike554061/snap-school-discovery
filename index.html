@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SNAP — School Delivery Discovery · Summit Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#14202b; --ink2:#1d2c3b; --ink3:#0f1922;
+    --grn:#12a150; --grn-d:#0c7d3d; --grn-soft:#8ff0b9; --grn-tint:#e7f7ee;
+    --amber:#e0872a;
+    --paper:#ffffff; --paper2:#f3f6f9; --paper3:#eaeef3;
+    --line:#dbe3ec; --txt:#14202b; --mut:#5b6b7b; --mut2:#8595a5;
+    --shadow:0 1px 2px rgba(20,32,43,.06),0 6px 20px rgba(20,32,43,.06);
+    --radius:12px;
+    --f:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--f);font-size:14px;line-height:1.45;color:var(--txt);background:var(--paper2);-webkit-font-smoothing:antialiased}
+  a{color:var(--grn-d)}
+  .disp{font-weight:800;letter-spacing:-.01em}
+
+  /* ---------- GATE ---------- */
+  #gate{position:fixed;inset:0;z-index:3000;background:var(--ink3);display:flex;align-items:center;justify-content:center;padding:20px;
+    background-image:radial-gradient(circle at 50% -10%,rgba(18,161,80,.18),transparent 60%)}
+  #gate .box{width:100%;max-width:400px;background:var(--ink);border:1px solid #2b3d4f;border-radius:16px;padding:30px 26px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.55)}
+  .wm{display:inline-flex;align-items:center;gap:9px;margin-bottom:12px}
+  .wm .mk{background:var(--grn);color:#fff;font-weight:900;font-size:16px;letter-spacing:.02em;padding:6px 11px;border-radius:9px}
+  .wm .co{color:#fff;font-weight:700;font-size:15px;letter-spacing:.02em}
+  #gate h1{font-size:19px;color:#fff;margin:6px 0 3px}
+  #gate .sub{font-size:12.5px;color:#9db0c2;margin-bottom:20px;line-height:1.55}
+  #gate input{width:100%;background:var(--ink3);border:1px solid #2b3d4f;color:#fff;border-radius:9px;padding:12px 13px;font-size:15px;font-family:var(--f);margin:6px 0}
+  #gate input:focus{outline:none;border-color:var(--grn)}
+  #gate button{width:100%;background:var(--grn);color:#fff;border:none;border-radius:9px;padding:12px;font-size:14.5px;font-weight:700;font-family:var(--f);cursor:pointer;margin-top:10px}
+  #gate button:hover{background:var(--grn-d)}
+  #gate .row2{display:flex;gap:8px}#gate .row2 input{width:50%}
+  #gMsg{font-size:12.5px;margin-top:12px;min-height:16px}
+  #gBack{color:#9db0c2;font-size:12px;display:inline-block;margin-top:12px;cursor:pointer;text-decoration:underline}
+  .gfine{font-size:11px;color:#6b7d8e;margin-top:16px;line-height:1.5}
+
+  /* ---------- HEADER ---------- */
+  header{background:var(--ink);color:#fff;padding:13px 22px;display:flex;align-items:center;gap:14px;border-bottom:3px solid var(--grn)}
+  header .mk{background:var(--grn);color:#fff;font-weight:900;font-size:15px;padding:6px 11px;border-radius:9px;letter-spacing:.02em}
+  header .htxt .t{font-size:17px;color:#fff;font-weight:800;letter-spacing:-.01em}
+  header .htxt .s{font-size:12px;color:var(--grn-soft);margin-top:2px}
+  header .who{margin-left:auto;text-align:right;font-size:11.5px;color:#9db0c2}
+  header .who b{color:#fff;display:block}
+
+  .wrap{max-width:1560px;margin:0 auto;padding:18px}
+
+  /* ---------- STATS ---------- */
+  .stats{display:grid;grid-template-columns:1.5fr repeat(6,1fr);gap:11px;margin-bottom:16px}
+  @media(max-width:1200px){.stats{grid-template-columns:repeat(4,1fr)}}
+  @media(max-width:680px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px;box-shadow:var(--shadow)}
+  .stat .n{font-size:24px;font-weight:800;line-height:1;color:var(--ink);letter-spacing:-.02em}
+  .stat .l{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin-top:7px;font-weight:700}
+  .stat .sub{color:var(--mut2);font-size:10.5px;margin-top:4px}
+  .stat.hero{background:var(--ink);border-color:var(--ink)}
+  .stat.hero .n{color:var(--grn-soft);font-size:31px}
+  .stat.hero .l{color:#a7d9be}
+  .stat.hero .sub{color:#8ba0b3}
+
+  /* ---------- assumptions / progress ---------- */
+  .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  details.asum{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);flex:1;min-width:280px}
+  details.asum summary{cursor:pointer;padding:11px 15px;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:700;list-style:none}
+  details.asum summary::-webkit-details-marker{display:none}
+  details.asum summary::before{content:"▸ ";color:var(--grn-d)}
+  details.asum[open] summary::before{content:"▾ "}
+  .asum .body{padding:2px 15px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+  .asum label{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;display:block}
+  .asum .fld{display:flex;align-items:center;gap:8px;margin-top:4px}
+  .asum input{width:74px;font-family:var(--f);border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:14px;font-weight:700}
+  .asum .u{font-size:11px;color:var(--mut)}
+  .asum .note{grid-column:1/-1;font-size:11.5px;color:var(--mut);border-top:1px dashed var(--line);padding-top:10px}
+
+  /* ---------- PANEL ---------- */
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px}
+  .panel .head{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  .panel .head h2{margin:0;font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink);font-weight:800}
+  .panel .head .hint{font-size:11.5px;color:var(--mut)}
+  .btns{display:flex;gap:8px;flex-wrap:wrap}
+  button.b{font-family:var(--f);cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--txt);padding:7px 12px;border-radius:8px;font-weight:700;font-size:12px;transition:.12s}
+  button.b:hover{border-color:var(--grn-d);color:var(--grn-d)}
+  button.b.primary{background:var(--grn);border-color:var(--grn);color:#fff}
+  button.b.primary:hover{background:var(--grn-d);color:#fff}
+  button.b.ghost{background:transparent;border-color:transparent;color:var(--mut)}
+
+  /* ---------- MATRIX ---------- */
+  .mxwrap{overflow-x:auto}
+  table.mx{border-collapse:separate;border-spacing:0;width:100%;min-width:900px}
+  table.mx th,table.mx td{border-bottom:1px solid var(--line);vertical-align:top}
+  /* field label col */
+  table.mx .fl{position:sticky;left:0;z-index:3;background:var(--paper);width:210px;min-width:210px;padding:11px 14px;border-right:1px solid var(--line)}
+  table.mx .fl .lb{font-weight:700;font-size:12.5px;color:var(--ink)}
+  table.mx .fl .hn{font-size:10.5px;color:var(--mut2);margin-top:2px;line-height:1.35}
+  /* school header */
+  thead .sch{background:var(--paper2);position:sticky;top:0;z-index:4;padding:10px 12px;border-right:1px solid var(--line);min-width:210px;text-align:left}
+  thead .sch.corner{z-index:6;left:0}
+  .sch .badge{display:inline-block;background:var(--ink);color:var(--grn-soft);font-weight:800;font-size:10.5px;letter-spacing:.04em;padding:3px 7px;border-radius:6px}
+  .sch .nm{font-weight:800;font-size:12.5px;color:var(--ink);margin-top:6px;line-height:1.25}
+  .sch .ad{font-size:10.5px;color:var(--mut);margin-top:3px;line-height:1.35}
+  .sch .en{font-size:10.5px;color:var(--grn-d);font-weight:700;margin-top:4px}
+  .sch .prog{height:5px;background:var(--paper3);border-radius:4px;margin-top:8px;overflow:hidden}
+  .sch .prog i{display:block;height:100%;background:var(--grn);border-radius:4px}
+  .sch .pct{font-size:9.5px;color:var(--mut2);margin-top:3px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  /* section row */
+  tr.sec td{background:var(--ink);color:#fff;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;padding:6px 14px;position:sticky;left:0}
+  tr.sec td .sub{color:#8ba0b3;font-weight:500;letter-spacing:0;text-transform:none;font-size:10.5px}
+  /* value cells */
+  td.v{padding:7px 10px;border-right:1px solid var(--line)}
+  td.v input[type=text],td.v input[type=tel],td.v input[type=email],td.v input[type=date],td.v textarea{
+    width:100%;border:1px solid transparent;background:transparent;padding:6px 7px;border-radius:6px;font-family:var(--f);font-size:12.5px;color:var(--ink);resize:vertical}
+  td.v input:hover,td.v textarea:hover{background:var(--paper2)}
+  td.v input:focus,td.v textarea:focus{outline:none;border-color:var(--grn);background:#fff}
+  td.v textarea{min-height:34px;line-height:1.35}
+  td.v .empty{border:1px dashed var(--line);border-radius:6px}
+  /* day toggles */
+  .days5{display:flex;gap:4px;flex-wrap:wrap}
+  .dtog{font-size:11px;font-weight:700;padding:5px 0;width:32px;text-align:center;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--mut);cursor:pointer;user-select:none}
+  .dtog.on{background:var(--grn);border-color:var(--grn);color:#fff}
+  /* break start/end */
+  .brk{display:flex;gap:6px;align-items:center}
+  .brk input{width:50%}
+  .brk .arw{color:var(--mut2);font-size:11px}
+  .timewin{display:flex;gap:6px;align-items:center}
+
+  /* ---------- CHIPS ---------- */
+  .chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .chips .lbl{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin-right:2px}
+  .chip{font-family:var(--f);font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--mut);cursor:pointer}
+  .chip.on{background:var(--ink);color:var(--grn-soft);border-color:var(--ink)}
+
+  /* ---------- ROUTE ---------- */
+  .rgrid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;align-items:start}
+  @media(max-width:1050px){.rgrid{grid-template-columns:1fr}}
+  #map{height:460px;width:100%}
+  .days{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;padding:14px 16px}
+  .day{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .day h3{margin:0;padding:9px 13px;background:var(--ink);color:#fff;font-size:12px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+  .day h3 .meta{font-size:10.5px;color:var(--grn-soft);font-weight:600}
+  .day .seq{padding:9px 13px;font-size:12px}
+  .day .seq .leg{display:flex;align-items:baseline;gap:6px;margin:2px 0}
+  .day .seq .stop{font-weight:600;color:var(--ink)}
+  .day .seq .drive{font-size:10.5px;color:var(--mut);padding-left:14px;position:relative}
+  .day .seq .drive::before{content:"↓";position:absolute;left:2px;color:var(--grn-d)}
+  .day .foot{padding:8px 13px;border-top:1px dashed var(--line);font-size:10.5px;color:var(--mut);display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px}
+  .day.empty h3{background:var(--paper2);color:var(--mut)}
+  .day.empty .none{padding:11px 13px;color:var(--mut);font-size:11.5px}
+  .note{font-size:11.5px;color:var(--mut);margin:8px 2px 0;line-height:1.5}
+  .maplibregl-popup-content{font-family:var(--f);font-size:12px;padding:8px 12px;border-radius:8px}
+  .maplibregl-popup-content b{color:var(--grn-d)}
+  .pin{font-size:11px;font-weight:800;color:#fff;background:var(--grn);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+  .pin.dep{background:var(--ink);color:var(--grn-soft)}
+  .day .seq .leg .pin.dep{background:var(--ink);color:var(--grn-soft)}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN GATE ============ -->
+<div id="gate">
+  <div class="box">
+    <div class="wm"><span class="mk">SNAP</span><span class="co">SupplyNow</span></div>
+    <h1 class="disp">School Delivery Discovery</h1>
+    <div class="sub">A working fact-find for the Summit Academy schools — Youngstown &amp; Warren, OH. Enter your details to access.</div>
+    <div id="gstep1">
+      <div class="row2"><input id="gName" placeholder="Full name" autocomplete="name"><input id="gCo" placeholder="Company" autocomplete="organization"></div>
+      <input id="gEmail" placeholder="you@company.com" type="email" autocomplete="email">
+      <input id="gPhone" placeholder="Mobile (optional)" type="tel" autocomplete="tel">
+      <button id="gSend">Send access code</button>
+    </div>
+    <div id="gstep2" style="display:none">
+      <div class="sub">Enter the 6-digit code sent to <b id="gEmailShow"></b>.</div>
+      <input id="gCode" placeholder="6-digit code" inputmode="numeric" maxlength="6">
+      <button id="gVerify">Verify &amp; enter</button>
+      <span id="gBack">← use different details</span>
+    </div>
+    <div id="gMsg"></div>
+    <div class="gfine">Property of SupplyNow Solutions · SNAP</div>
+  </div>
+</div>
+
+<header>
+  <span class="mk">SNAP</span>
+  <div class="htxt">
+    <div class="t">School Delivery Discovery</div>
+    <div class="s">Summit Academy · Youngstown &amp; Warren, OH · 4 schools</div>
+  </div>
+  <div class="who" id="who"></div>
+</header>
+
+<div class="wrap">
+
+  <div class="stats" id="stats"></div>
+
+  <div class="toolbar">
+    <details class="asum" id="asum">
+      <summary>Routing assumptions (edit to model)</summary>
+      <div class="body">
+        <div><label>Stop service time</label><div class="fld"><input id="a_svc" type="number" step="5" value="20"><span class="u">min / stop</span></div></div>
+        <div><label>Fallback speed</label><div class="fld"><input id="a_mph" type="number" step="1" value="32"><span class="u">mph (if drive API down)</span></div></div>
+        <div class="note">Drive time between each school comes from live road-network routing (OSRM). Stop time = minutes per location × stops. <b>No pricing is shown</b> — this is a discovery &amp; footprint tool. Weekly totals roll up each school's captured delivery days (Mon–Fri).</div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ============ DISCOVERY MATRIX ============ -->
+  <div class="panel">
+    <div class="head">
+      <h2>Discovery fact-find — capture per school</h2>
+      <div class="btns">
+        <button class="b" onclick="exportCSV()">Export CSV</button>
+        <button class="b" onclick="exportJSON()">Export JSON</button>
+        <button class="b ghost" onclick="resetAll()">Reset</button>
+      </div>
+    </div>
+    <div class="mxwrap">
+      <table class="mx" id="mx"></table>
+    </div>
+    <div class="note" style="padding:0 16px 12px">Every field autosaves to this browser and is captured to the SupplyNow discovery log. Fill what you learn on each call; the completeness bars and KPIs update live. Use <b>Export</b> to hand off the captured data.</div>
+  </div>
+
+  <!-- ============ ROUTE VISUAL ============ -->
+  <div class="panel">
+    <div class="head">
+      <h2>Route footprint &amp; drive times</h2>
+      <div class="chips" id="dayChips"></div>
+    </div>
+    <div class="rgrid">
+      <div id="map"></div>
+      <div class="days" id="days"></div>
+    </div>
+    <p class="note" id="milesnote" style="padding:0 16px 14px"></p>
+  </div>
+
+  <p class="note">Drive times are live road-network estimates. Each delivery day is a round trip from the SNAP depot (2275 E 55th St, Cleveland) out to the schools and back, sequenced nearest-neighbor. Stop time is a flat allowance per location, editable above. Everything you capture autosaves to this browser; use Export to hand it off.</p>
+
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+/* ================= ENDPOINT / GATE / LOGGING ================= */
+const ENDPOINT='https://script.google.com/macros/s/AKfycbz4ial75YjPQODBlfOFZJJWeRDQn7MI9KT6UrfKUGkR1VAHhy7Ns07y1QT_tqfl2D1L/exec';
+const SITE='summit';
+const DEV=location.hostname==='localhost'||location.hostname==='127.0.0.1'||location.protocol==='file:';
+let GUSER={email:'',name:'',company:'',phone:''};
+
+function jsonp(params){return new Promise(res=>{const fn='_j'+Math.random().toString(36).slice(2);const s=document.createElement('script');window[fn]=d=>{res(d||{});delete window[fn];s.remove();};s.onerror=()=>{res({ok:false,error:'network'});s.remove();};s.src=ENDPOINT+'?'+new URLSearchParams(Object.assign({},params,{callback:fn}));document.body.appendChild(s);});}
+let _logT;
+function logCapture(type,data){ if(!GUSER.email||DEV)return; clearTimeout(_logT); _logT=setTimeout(()=>{jsonp({mode:'log',site:SITE,email:GUSER.email,type:SITE+':'+type,data:JSON.stringify(data).slice(0,40000)});},1200); }
+function logNow(type,data){ if(!GUSER.email||DEV)return; jsonp({mode:'log',site:SITE,email:GUSER.email,type:SITE+':'+type,data:JSON.stringify(data).slice(0,40000)}); }
+
+/* ================= CONFIG ================= */
+const DAYS=["Mon","Tue","Wed","Thu","Fri"];
+let A={svc:20,mph:32};
+let DAYON={}; DAYS.forEach(d=>DAYON[d]=true);
+
+/* Delivery start & end = SNAP depot (round-trip origin) */
+const ORIGIN={short:'DEPOT',name:'SNAP Depot',address:'2275 E 55th St',city:'Cleveland',zip:'44103',lat:41.496695,lng:-81.651634};
+
+/* baked-in fallback driving matrix (minutes / miles) from OSRM.
+   Index 0 = DEPOT, then schools in SEED order (YOUMID,YOUSEC,WARELE,WARMID). */
+const FB_DUR=[
+  [0,88.7,94.8,83.7,77.7],
+  [87.2,0,9.4,21.8,28.8],
+  [95.8,11.3,0,26.8,33.7],
+  [82.9,22.2,27.0,0,9.3],
+  [76.9,29.4,34.7,9.4,0]];
+const FB_DIST=[
+  [0,67.4,71.9,54.8,51.2],
+  [67.1,0,5.1,13.4,18.3],
+  [72.1,5.7,0,15.7,20.6],
+  [54.4,13.6,14.6,0,4.3],
+  [50.8,18.5,22.3,4.3,0]];
+let MAT={dur:FB_DUR.map(r=>r.slice()),dist:FB_DIST.map(r=>r.slice()),live:false};
+function matIdx(s){return s.short==='DEPOT'?0:SEED.findIndex(x=>x.short===s.short)+1;}
+
+function newDisco(){return{contact:'',phone:'',email:'',
+  days:{Mon:true,Tue:true,Wed:true,Thu:true,Fri:true},
+  wStart:'7:00 AM',wEnd:'9:30 AM',notes:'',closures:'',
+  brk:{tg:{s:'',e:''},win:{s:'',e:''},spr:{s:'',e:''},sum:{s:'',e:''}},plan:'',_inc:true};}
+
+const SEED=[
+  {short:'YOUMID',name:'SA Youngstown',address:'144 N. Schenley Avenue',city:'Youngstown',zip:'44509',enroll:117,lat:41.105365,lng:-80.700066},
+  {short:'YOUSEC',name:'SA Secondary School — Youngstown',address:'2800 Shady Run Road',city:'Youngstown',zip:'44502',enroll:91,lat:41.071375,lng:-80.634213},
+  {short:'WARELE',name:'SA Community School — Warren',address:'2106 Arbor Avenue SE',city:'Warren',zip:'44484',enroll:105,lat:41.220504,lng:-80.786193},
+  {short:'WARMID',name:'SA School for Alternative Learners — Warren (Middle & Secondary)',address:'1461 Moncrest Drive NW',city:'Warren',zip:'44485',enroll:74,lat:41.248889,lng:-80.840528},
+];
+
+/* discovery field spec (for matrix render + completeness) */
+const SECTIONS=[
+  {title:'On-site contact',sub:'the person who receives delivery',fields:[
+    {k:'contact',lb:'Contact name',hn:'who signs / opens the door',t:'text'},
+    {k:'phone',lb:'Contact phone',hn:'on-site, day-of',t:'tel'},
+    {k:'email',lb:'Contact email',hn:'confirmations & changes',t:'email'},
+  ]},
+  {title:'Delivery schedule',sub:'which days & window',fields:[
+    {k:'days',lb:'Delivery days',hn:'toggle the weekdays served',t:'days'},
+    {k:'window',lb:'Delivery window',hn:'earliest → latest arrival',t:'window'},
+  ]},
+  {title:'Delivery details',fields:[
+    {k:'notes',lb:'Stop / access notes',hn:'"back door, south side of building"',t:'area'},
+    {k:'closures',lb:'Closure dates',hn:'recurring or specific non-holiday no-delivery days',t:'area'},
+  ]},
+  {title:'Holiday breaks',sub:'no-delivery ranges',fields:[
+    {k:'tg',lb:'Thanksgiving break',hn:'start → end',t:'brk'},
+    {k:'win',lb:'Winter / Christmas break',hn:'start → end',t:'brk'},
+    {k:'spr',lb:'Spring break',hn:'start → end',t:'brk'},
+    {k:'sum',lb:'Summer break',hn:'start → end',t:'brk'},
+  ]},
+  {title:'Contingency',fields:[
+    {k:'plan',lb:'Holiday delivery plan',hn:'single closure — redeliver, or double-deliver prior?',t:'area'},
+  ]},
+];
+
+/* ================= STATE ================= */
+let SCHOOLS=load()||SEED.map(s=>Object.assign({},s,{d:newDisco()}));
+let map,markers=[],routeCache={};
+function save(){localStorage.setItem("snapdisco_v1",JSON.stringify(SCHOOLS));logCapture('factfind',{schools:SCHOOLS.length,complete:completeness().pct,totals:totals()});}
+function load(){try{const d=localStorage.getItem("snapdisco_v1");return d?JSON.parse(d):null}catch(e){return null}}
+function inc(s){return s.d._inc!==false;}
+
+/* ================= COMPUTE ================= */
+function schoolFilled(s){
+  const d=s.d;let done=0,tot=0;
+  const scal=['contact','phone','email','notes','closures','plan'];
+  scal.forEach(k=>{tot++;if((d[k]||'').trim())done++;});
+  tot++;if((d.wStart||'').trim()&&(d.wEnd||'').trim())done++;           // window
+  ['tg','win','spr','sum'].forEach(b=>{tot++;if((d.brk[b].s||'').trim()||(d.brk[b].e||'').trim())done++;}); // breaks
+  return {done,tot};
+}
+function completeness(){let done=0,tot=0;SCHOOLS.forEach(s=>{const f=schoolFilled(s);done+=f.done;tot+=f.tot;});return{done,tot,pct:tot?Math.round(done/tot*100):0};}
+
+function idxOf(s){return SCHOOLS.indexOf(s);}
+/* nearest-neighbor sequence starting AND ending at the depot (round trip) */
+function sequence(list){
+  if(!list.length)return{order:[],legs:[],drive:0,dist:0};
+  const rem=list.slice();const order=[];const legs=[];let drive=0,dist=0;
+  let cur=ORIGIN;
+  while(rem.length){
+    const ci=matIdx(cur);let bi=0,bd=Infinity;
+    for(let i=0;i<rem.length;i++){const d=MAT.dur[ci][matIdx(rem[i])];if(d<bd){bd=d;bi=i;}}
+    const nxt=rem[bi];legs.push({from:cur,to:nxt,min:MAT.dur[ci][matIdx(nxt)],mi:MAT.dist[ci][matIdx(nxt)]});
+    drive+=MAT.dur[ci][matIdx(nxt)];dist+=MAT.dist[ci][matIdx(nxt)];
+    order.push(nxt);cur=nxt;rem.splice(bi,1);
+  }
+  const ci=matIdx(cur); // return leg to depot
+  legs.push({from:cur,to:ORIGIN,min:MAT.dur[ci][0],mi:MAT.dist[ci][0]});
+  drive+=MAT.dur[ci][0];dist+=MAT.dist[ci][0];
+  return{order,legs,drive,dist};
+}
+function dayRoute(day){
+  const list=SCHOOLS.filter(s=>inc(s)&&s.d.days[day]);
+  if(!list.length)return null;
+  const seq=sequence(list);
+  const stopMin=list.length*A.svc;
+  return Object.assign(seq,{day,stops:list.length,stopMin,totalMin:seq.drive+stopMin});
+}
+function totals(){
+  let stops=0,drive=0,stop=0,days=0,dist=0;
+  DAYS.forEach(d=>{const r=dayRoute(d);if(r){days++;stops+=r.stops;drive+=r.drive;stop+=r.stopMin;dist+=r.dist;}});
+  const enroll=SCHOOLS.filter(inc).reduce((a,s)=>a+(+s.enroll||0),0);
+  return{schools:SCHOOLS.filter(inc).length,enroll,stops,drive,stop,dist,days,total:drive+stop};
+}
+
+/* ================= RENDER ================= */
+function num(n){return (n||0).toLocaleString(undefined,{maximumFractionDigits:0})}
+function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}
+function hrs(min){return (min/60).toLocaleString(undefined,{maximumFractionDigits:1})}
+function mn(min){min=Math.round(min);if(min<60)return min+'m';const h=Math.floor(min/60),m=min%60;return h+'h'+(m?' '+m+'m':'');}
+
+function renderStats(){
+  const t=totals(),c=completeness();
+  document.getElementById("stats").innerHTML=[
+    {hero:1,n:mn(t.total),l:"Total route time / wk",sub:`${hrs(t.drive)}h drive · ${hrs(t.stop)}h stops`},
+    {n:num(t.schools),l:"Schools"},
+    {n:num(t.enroll),l:"Enrollment",sub:"≈ meals / day"},
+    {n:num(t.stops),l:"Delivery stops / wk"},
+    {n:mn(t.drive),l:"Drive time / wk",sub:`~${num(t.dist)} mi`},
+    {n:mn(t.stop),l:"Stop time / wk",sub:`${A.svc} min × ${t.stops}`},
+    {n:c.pct+"%",l:"Discovery captured",sub:`${c.done}/${c.tot} fields`},
+  ].map(s=>`<div class="stat ${s.hero?'hero':''}"><div class="n">${s.n}</div><div class="l">${s.l}</div>${s.sub?`<div class="sub">${s.sub}</div>`:''}</div>`).join("");
+  document.getElementById("milesnote").innerHTML=`Each delivery day starts &amp; ends at the <b>SNAP depot (2275 E 55th St, Cleveland)</b> — a ~77–96 min haul each way to the Youngstown/Warren cluster. Across <b>${t.days}</b> delivery day(s)/week: ~<b>${num(t.dist)} miles</b> and ~<b>${mn(t.drive)}</b> driving (incl. depot round-trip), plus <b>${mn(t.stop)}</b> of stop time (${A.svc} min × ${t.stops} stops) = <b>${mn(t.total)}</b> total route time.${MAT.live?' <span style="color:var(--grn-d)">Live road-network drive times.</span>':' <span style="color:var(--amber)">Using baked-in drive estimates (live routing unavailable).</span>'}`;
+}
+
+function cell(s,f){
+  const i=idxOf(s),d=s.d;
+  if(f.t==='days'){
+    return `<div class="days5">${DAYS.map(dy=>`<div class="dtog ${d.days[dy]?'on':''}" onclick="togDay(${i},'${dy}')">${dy[0]}</div>`).join('')}</div>`;
+  }
+  if(f.t==='window'){
+    return `<div class="timewin"><input type="text" value="${esc(d.wStart)}" placeholder="7:00 AM" onchange="updD(${i},'wStart',this.value)"><span class="arw" style="color:var(--mut2)">→</span><input type="text" value="${esc(d.wEnd)}" placeholder="9:30 AM" onchange="updD(${i},'wEnd',this.value)"></div>`;
+  }
+  if(f.t==='brk'){
+    const b=d.brk[f.k];
+    return `<div class="brk"><input type="date" value="${esc(b.s)}" onchange="updBrk(${i},'${f.k}','s',this.value)"><span class="arw">→</span><input type="date" value="${esc(b.e)}" onchange="updBrk(${i},'${f.k}','e',this.value)"></div>`;
+  }
+  if(f.t==='area'){
+    return `<textarea placeholder="—" onchange="updD(${i},'${f.k}',this.value)">${esc(d[f.k])}</textarea>`;
+  }
+  const type=f.t==='tel'?'tel':f.t==='email'?'email':'text';
+  return `<input type="${type}" class="${(d[f.k]||'').trim()?'':'empty'}" value="${esc(d[f.k])}" placeholder="—" onchange="updD(${i},'${f.k}',this.value)">`;
+}
+
+function renderMatrix(){
+  const t=document.getElementById("mx");
+  // header
+  let h=`<thead><tr><th class="sch corner">Discovery field</th>`;
+  SCHOOLS.forEach((s)=>{
+    const f=schoolFilled(s),pct=f.tot?Math.round(f.done/f.tot*100):0;
+    h+=`<th class="sch"><span class="badge">${esc(s.short)}</span><div class="nm">${esc(s.name)}</div><div class="ad">${esc(s.address)}<br>${esc(s.city)}, OH ${esc(s.zip)}</div><div class="en">${num(s.enroll)} enrolled</div><div class="prog"><i style="width:${pct}%"></i></div><div class="pct">${pct}% captured</div></th>`;
+  });
+  h+=`</tr></thead><tbody>`;
+  SECTIONS.forEach(sec=>{
+    h+=`<tr class="sec"><td colspan="${SCHOOLS.length+1}">${esc(sec.title)}${sec.sub?` <span class="sub">— ${esc(sec.sub)}</span>`:''}</td></tr>`;
+    sec.fields.forEach(f=>{
+      h+=`<tr><td class="fl"><div class="lb">${esc(f.lb)}</div><div class="hn">${esc(f.hn||'')}</div></td>`;
+      SCHOOLS.forEach(s=>{h+=`<td class="v">${cell(s,f)}</td>`;});
+      h+=`</tr>`;
+    });
+  });
+  h+=`</tbody>`;
+  t.innerHTML=h;
+}
+
+function renderChips(){
+  const el=document.getElementById("dayChips");
+  el.innerHTML='<span class="lbl">Show days:</span>'+DAYS.map(d=>`<span class="chip ${DAYON[d]?'on':''}" onclick="toggleShow('${d}')">${d}</span>`).join('');
+}
+function toggleShow(d){DAYON[d]=!DAYON[d];renderChips();renderDays();drawMap();}
+
+function renderDays(){
+  const el=document.getElementById("days");el.innerHTML="";
+  let any=false;
+  DAYS.forEach(d=>{
+    if(!DAYON[d])return;
+    const r=dayRoute(d);
+    if(!r){return;}
+    any=true;
+    const c=document.createElement("div");c.className="day";
+    let seq=`<div class="leg"><span class="pin dep" style="width:18px;height:18px;font-size:10px;display:inline-flex">◆</span><span class="stop">Depot</span></div>`;
+    r.legs.forEach((lg,i)=>{
+      const back=lg.to.short==='DEPOT';
+      seq+=`<div class="drive">${mn(lg.min)} · ${num(lg.mi)} mi</div>`;
+      seq+=`<div class="leg"><span class="pin ${back?'dep':''}" style="width:18px;height:18px;font-size:10px;display:inline-flex">${back?'◆':(i+1)}</span><span class="stop">${back?'Depot (return)':esc(lg.to.short)}</span></div>`;
+    });
+    c.innerHTML=`<h3>${d} <span class="meta">${r.stops} stops · ${mn(r.totalMin)}</span></h3>
+      <div class="seq">${seq}</div>
+      <div class="foot"><span>${mn(r.drive)} drive · ${num(r.dist)} mi</span><span>${mn(r.stopMin)} stops</span></div>`;
+    el.appendChild(c);
+  });
+  const off=SCHOOLS.filter(s=>inc(s)&&!DAYS.some(d=>s.d.days[d]));
+  if(off.length){const c=document.createElement("div");c.className="day empty";c.innerHTML=`<h3>No days set</h3><div class="none">${off.map(s=>esc(s.short)).join(", ")} — assign delivery days above</div>`;el.appendChild(c);any=true;}
+  if(!any)el.innerHTML=`<div class="day empty"><h3>No active days</h3><div class="none">Toggle delivery days on a school to build routes.</div></div>`;
+}
+
+/* ================= EDIT ================= */
+function updD(i,k,v){SCHOOLS[i].d[k]=v;save();renderStats();renderMatrixHeadPct();}
+function updBrk(i,k,se,v){SCHOOLS[i].d.brk[k][se]=v;save();renderStats();renderMatrixHeadPct();}
+function togDay(i,dy){SCHOOLS[i].d.days[dy]=!SCHOOLS[i].d.days[dy];save();renderMatrix();renderStats();renderDays();drawMap();}
+function renderMatrixHeadPct(){ // light refresh of just the header % without rebuilding inputs (avoids losing focus)
+  document.querySelectorAll('#mx thead th.sch:not(.corner)').forEach((th,idx)=>{
+    const f=schoolFilled(SCHOOLS[idx]),pct=f.tot?Math.round(f.done/f.tot*100):0;
+    const bar=th.querySelector('.prog i'),lab=th.querySelector('.pct');
+    if(bar)bar.style.width=pct+'%';if(lab)lab.textContent=pct+'% captured';
+  });
+}
+function resetAll(){if(confirm("Clear all captured discovery data and reset the schools?")){SCHOOLS=SEED.map(s=>Object.assign({},s,{d:newDisco()}));DAYS.forEach(d=>DAYON[d]=true);save();renderAll();logNow('reset',{});}}
+
+['svc','mph'].forEach(k=>{const m={svc:'a_svc',mph:'a_mph'};document.getElementById(m[k]).addEventListener('input',e=>{A[k]=+e.target.value||A[k];renderStats();renderDays();logCapture('assumptions',A);});});
+
+/* ================= MAP ================= */
+function initMap(){
+  map=new maplibregl.Map({container:"map",style:{version:8,sources:{osm:{type:"raster",tiles:["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png","https://b.tile.openstreetmap.org/{z}/{x}/{y}.png"],tileSize:256,attribution:"© OpenStreetMap"}},layers:[{id:"osm",type:"raster",source:"osm"}]},center:[-80.74,41.16],zoom:9.6});
+  map.addControl(new maplibregl.NavigationControl(),"top-right");
+  map.on("load",drawMap);
+}
+async function osrmRoute(list){
+  const key=list.map(s=>s.short).join('>');
+  if(routeCache[key])return routeCache[key];
+  try{
+    const coords=list.map(s=>`${s.lng},${s.lat}`).join(';');
+    const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
+    const j=await r.json();
+    if(j.routes&&j.routes[0]){routeCache[key]=j.routes[0].geometry.coordinates;return routeCache[key];}
+  }catch(e){}
+  return list.map(s=>[s.lng,s.lat]);
+}
+async function drawMap(){
+  if(!map||!map.isStyleLoaded()){setTimeout(drawMap,150);return;}
+  markers.forEach(m=>m.remove());markers=[];
+  ['rl1','rl2','rl3','rl4','rl5'].forEach(id=>{if(map.getLayer(id))map.removeLayer(id);if(map.getSource(id))map.removeSource(id);});
+  // depot pin
+  const de=document.createElement("div");de.className="pin dep";de.textContent="◆ DEPOT";
+  de.style.width="auto";de.style.padding="0 8px";de.style.borderRadius="8px";de.style.fontSize="9.5px";
+  markers.push(new maplibregl.Marker({element:de}).setLngLat([ORIGIN.lng,ORIGIN.lat]).setPopup(new maplibregl.Popup().setHTML(`<b>${esc(ORIGIN.name)}</b><br>${esc(ORIGIN.address)}, ${esc(ORIGIN.city)}<br>Delivery start &amp; end`)).addTo(map));
+  // school pins
+  SCHOOLS.filter(s=>inc(s)&&s.lat!=null).forEach((s)=>{
+    const e=document.createElement("div");e.className="pin";e.textContent=s.short.slice(0,3);
+    e.style.width="auto";e.style.padding="0 7px";e.style.borderRadius="8px";e.style.fontSize="9.5px";
+    markers.push(new maplibregl.Marker({element:e}).setLngLat([s.lng,s.lat]).setPopup(new maplibregl.Popup().setHTML(`<b>${esc(s.name)}</b><br>${esc(s.address)}, ${esc(s.city)}<br>${num(s.enroll)} enrolled`)).addTo(map));
+  });
+  // one route line per active day (dedup identical sequences), depot→schools→depot
+  const drawn={};let li=0;
+  for(const d of DAYS){
+    if(!DAYON[d])continue;
+    const r=dayRoute(d);if(!r)continue;
+    const key=r.order.map(s=>s.short).join('>');
+    if(drawn[key])continue;drawn[key]=1;li++;
+    const geo=await osrmRoute([ORIGIN,...r.order,ORIGIN]);
+    const id='rl'+li;
+    if(map.getSource(id)){map.removeLayer(id);map.removeSource(id);}
+    map.addSource(id,{type:"geojson",data:{type:"Feature",geometry:{type:"LineString",coordinates:geo}}});
+    map.addLayer({id,type:"line",source:id,paint:{"line-color":"#12a150","line-width":3.5,"line-opacity":.7}});
+    if(li>=5)break;
+  }
+  const pts=[[ORIGIN.lng,ORIGIN.lat],...SCHOOLS.filter(s=>inc(s)&&s.lat!=null).map(s=>[s.lng,s.lat])];
+  if(pts.length>1){const b=pts.reduce((bb,c)=>bb.extend(c),new maplibregl.LngLatBounds(pts[0],pts[0]));map.fitBounds(b,{padding:60,maxZoom:11,duration:400});}
+}
+
+/* refresh live drive matrix from OSRM table */
+async function refreshMatrix(){
+  try{
+    const coords=[ORIGIN,...SEED].map(s=>`${s.lng},${s.lat}`).join(';');
+    const r=await fetch(`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=duration,distance`);
+    const j=await r.json();
+    if(j.durations&&j.distances){
+      MAT.dur=j.durations.map(row=>row.map(v=>v/60));
+      MAT.dist=j.distances.map(row=>row.map(v=>v/1609.34));
+      MAT.live=true;
+      renderStats();renderDays();drawMap();
+    }
+  }catch(e){/* keep fallback */}
+}
+
+/* ================= EXPORT ================= */
+function exportCSV(){
+  const rows=[];
+  const head=['Discovery field',...SCHOOLS.map(s=>s.short)];
+  rows.push(head);
+  const line=(lb,fn)=>rows.push([lb,...SCHOOLS.map(fn)]);
+  line('School name',s=>s.name); line('Address',s=>s.address); line('City',s=>s.city+', OH '+s.zip); line('Enrollment',s=>s.enroll);
+  line('Contact name',s=>s.d.contact); line('Contact phone',s=>s.d.phone); line('Contact email',s=>s.d.email);
+  line('Delivery days',s=>DAYS.filter(d=>s.d.days[d]).join(' ')); line('Window start',s=>s.d.wStart); line('Window end',s=>s.d.wEnd);
+  line('Stop / access notes',s=>s.d.notes); line('Closure dates',s=>s.d.closures);
+  line('Thanksgiving break',s=>[s.d.brk.tg.s,s.d.brk.tg.e].filter(Boolean).join(' → '));
+  line('Winter/Christmas break',s=>[s.d.brk.win.s,s.d.brk.win.e].filter(Boolean).join(' → '));
+  line('Spring break',s=>[s.d.brk.spr.s,s.d.brk.spr.e].filter(Boolean).join(' → '));
+  line('Summer break',s=>[s.d.brk.sum.s,s.d.brk.sum.e].filter(Boolean).join(' → '));
+  line('Holiday delivery plan',s=>s.d.plan);
+  const t=totals();
+  rows.push([]);rows.push(['— Route summary (no pricing) —']);
+  rows.push(['Delivery days/wk',t.days]);rows.push(['Stops/wk',t.stops]);
+  rows.push(['Drive time/wk (min)',Math.round(t.drive)]);rows.push(['Stop time/wk (min)',Math.round(t.stop)]);
+  rows.push(['Total route time/wk (min)',Math.round(t.total)]);rows.push(['Weekly miles',Math.round(t.dist)]);
+  const csv=rows.map(r=>r.map(c=>`"${String(c==null?'':c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  dl('summit-academy-discovery.csv','data:text/csv;charset=utf-8,'+encodeURIComponent(csv));
+  logNow('export_csv',t);
+}
+function exportJSON(){const payload={user:GUSER,assumptions:A,totals:totals(),completeness:completeness(),schools:SCHOOLS};dl('summit-academy-discovery.json','data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(payload,null,2)));logNow('export_json',totals());}
+function dl(name,uri){const a=document.createElement("a");a.href=uri;a.download=name;document.body.appendChild(a);a.click();a.remove();}
+
+/* ================= BOOT ================= */
+function renderAll(){renderMatrix();renderChips();renderStats();renderDays();drawMap();}
+function startApp(){
+  document.getElementById("who").innerHTML=GUSER.name?`<b>${esc(GUSER.name)}</b>${esc(GUSER.company||'')}`:'';
+  initMap();renderAll();refreshMatrix();
+  logNow('session_start',{ua:navigator.userAgent.slice(0,120),tz:Intl.DateTimeFormat().resolvedOptions().timeZone});
+}
+
+/* ---- gate flow ---- */
+(function initGate(){
+  const gate=document.getElementById('gate');
+  function gmsg(t,ok){const m=document.getElementById('gMsg');m.style.color=ok?'#7ddba0':'#f0a58f';m.textContent=t||'';}
+  function unlock(){gate.style.display='none';startApp();setTimeout(()=>map&&map.resize&&map.resize(),200);}
+  if(DEV){GUSER={email:'dev@local',name:'Preview',company:'',phone:''};unlock();return;}
+  let tok=null;try{tok=JSON.parse(localStorage.getItem('snapdisco_token')||'null');}catch(e){}
+  if(tok&&tok.email&&(Date.now()-tok.ts)<30*864e5){GUSER=tok;unlock();return;}
+  document.getElementById('gSend').onclick=async()=>{
+    const email=document.getElementById('gEmail').value.trim();
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){gmsg('Enter a valid email');return;}
+    GUSER={email,name:document.getElementById('gName').value.trim(),company:document.getElementById('gCo').value.trim(),phone:document.getElementById('gPhone').value.trim()};
+    gmsg('Sending…',true);
+    const r=await jsonp({mode:'code',site:SITE,email,name:GUSER.name,company:GUSER.company,phone:GUSER.phone});
+    jsonp({mode:'log',site:SITE,email,type:SITE+':contact',data:JSON.stringify(GUSER)});
+    if(r.ok){document.getElementById('gEmailShow').textContent=email;document.getElementById('gstep1').style.display='none';document.getElementById('gstep2').style.display='';gmsg('Code sent — check your email.',true);}
+    else gmsg(r.error||'Could not send code');
+  };
+  document.getElementById('gVerify').onclick=async()=>{
+    const c=document.getElementById('gCode').value.trim();if(c.length<6){gmsg('Enter the 6-digit code');return;}
+    gmsg('Verifying…',true);
+    const r=await jsonp({mode:'verify',site:SITE,email:GUSER.email,code:c});
+    if(r.ok){try{localStorage.setItem('snapdisco_token',JSON.stringify(Object.assign({ts:Date.now()},GUSER)));}catch(e){}logNow('login',GUSER);unlock();}
+    else gmsg(r.error||'Wrong code');
+  };
+  document.getElementById('gBack').onclick=()=>{document.getElementById('gstep2').style.display='none';document.getElementById('gstep1').style.display='';gmsg('');};
+})();
+</script>
+</body>
+</html>
