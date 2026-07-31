@@ -223,7 +223,7 @@
     <div class="mxwrap">
       <table class="mx" id="mx"></table>
     </div>
-    <div class="note" style="padding:0 16px 12px">Every field autosaves to this browser and is captured to the SupplyNow discovery log. Fill what you learn on each call; the completeness bars and KPIs update live. Use <b>Export</b> to hand off the captured data.</div>
+    <div class="note" style="padding:0 16px 12px">Every field saves to the <b>shared SupplyNow record</b> — visible to anyone who logs in, on any device, any time. Every change (including deletions) is <b>permanently logged</b> with its before &amp; after value. Fill what you learn on each call; KPIs update live. Use <b>Export</b> for a point-in-time snapshot.</div>
   </div>
 
   <!-- ============ ROUTE VISUAL ============ -->
@@ -239,7 +239,7 @@
     <p class="note" id="milesnote" style="padding:0 16px 14px"></p>
   </div>
 
-  <p class="note">Drive times are live road-network estimates. Each delivery day is a round trip from the SNAP depot (2275 E 55th St, Cleveland) out to the schools and back, sequenced nearest-neighbor. Stop time is a flat allowance per location, editable above. Everything you capture autosaves to this browser; use Export to hand it off.</p>
+  <p class="note">Drive times are live road-network estimates. Each delivery day is a round trip from the SNAP depot (2275 E 55th St, Cleveland) out to the schools and back, sequenced nearest-neighbor. Stop time is a flat allowance per location, editable above. Everything you capture saves to the shared record automatically; use Export for a snapshot.</p>
 
 </div>
 
@@ -248,13 +248,40 @@
 /* ================= ENDPOINT / GATE / LOGGING ================= */
 const ENDPOINT='https://script.google.com/macros/s/AKfycbz4ial75YjPQODBlfOFZJJWeRDQn7MI9KT6UrfKUGkR1VAHhy7Ns07y1QT_tqfl2D1L/exec';
 const SITE='summit';
-const DEV=location.hostname==='localhost'||location.hostname==='127.0.0.1'||location.protocol==='file:';
+const LOCAL=location.hostname==='localhost'||location.hostname==='127.0.0.1'||location.protocol==='file:';
+const Q=new URLSearchParams(location.search);
+const SERVER=!LOCAL||Q.has('live');   // talk to the shared backend (persist + audit)? prod=yes; local only with ?live
+const DEV=LOCAL&&!Q.has('gate');      // bypass the login overlay for local preview
 let GUSER={email:'',name:'',company:'',phone:''};
 
 function jsonp(params){return new Promise(res=>{const fn='_j'+Math.random().toString(36).slice(2);const s=document.createElement('script');window[fn]=d=>{res(d||{});delete window[fn];s.remove();};s.onerror=()=>{res({ok:false,error:'network'});s.remove();};s.src=ENDPOINT+'?'+new URLSearchParams(Object.assign({},params,{callback:fn}));document.body.appendChild(s);});}
 let _logT;
-function logCapture(type,data){ if(!GUSER.email||DEV)return; clearTimeout(_logT); _logT=setTimeout(()=>{jsonp({mode:'log',site:SITE,email:GUSER.email,type:SITE+':'+type,data:JSON.stringify(data).slice(0,40000)});},1200); }
-function logNow(type,data){ if(!GUSER.email||DEV)return; jsonp({mode:'log',site:SITE,email:GUSER.email,type:SITE+':'+type,data:JSON.stringify(data).slice(0,40000)}); }
+function logCapture(type,data){ if(!GUSER.email||!SERVER)return; clearTimeout(_logT); _logT=setTimeout(()=>{jsonp({mode:'log',site:SITE,email:GUSER.email,type:SITE+':'+type,data:JSON.stringify(data).slice(0,40000)});},1200); }
+function logNow(type,data){ if(!GUSER.email||!SERVER)return; jsonp({mode:'log',site:SITE,email:GUSER.email,type:SITE+':'+type,data:JSON.stringify(data).slice(0,40000)}); }
+
+/* ===== SHARED PERSISTENCE + AUDIT (field-level before -> after) ===== */
+/* Every change writes to the central Google Sheet: the current value (upsert, so it's
+   shared & static across users/devices) AND a permanent audit row (old -> new, so a
+   value typed then deleted is never lost). */
+function pushField(short,field,oldv,newv){
+  if(!SERVER||!GUSER.email)return;
+  jsonp({mode:'summit_set',site:SITE,email:GUSER.email,key:short+'|'+field,
+    val:newv==null?'':String(newv),old:oldv==null?'':String(oldv),school:short,field:field});
+}
+function daysCSV(s){return DAYS.filter(d=>s.d.days[d]).join(',');}
+async function hydrate(){
+  if(!SERVER)return;
+  try{const r=await jsonp({mode:'summit_get',site:SITE});if(r&&r.ok&&r.state)applyState(r.state);}catch(e){}
+}
+function applyState(state){
+  SCHOOLS.forEach(s=>{
+    const g=k=>state[s.short+'|'+k];
+    ['contact','phone','email','wStart','wEnd','notes','closures','plan'].forEach(k=>{const v=g(k);if(v!==undefined)s.d[k]=v;});
+    const dv=g('days');if(dv!==undefined){const on=String(dv).split(',').map(x=>x.trim());DAYS.forEach(d=>s.d.days[d]=on.indexOf(d)>=0);}
+    ['tg','win','spr','sum'].forEach(b=>['s','e'].forEach(se=>{const v=g(b+'.'+se);if(v!==undefined)s.d.brk[b][se]=v;}));
+  });
+  localStorage.setItem("snapdisco_v1",JSON.stringify(SCHOOLS));
+}
 
 /* ================= CONFIG ================= */
 const DAYS=["Mon","Tue","Wed","Thu","Fri"];
@@ -322,7 +349,7 @@ const SECTIONS=[
 /* ================= STATE ================= */
 let SCHOOLS=load()||SEED.map(s=>Object.assign({},s,{d:newDisco()}));
 let map,markers=[],routeCache={};
-function save(){localStorage.setItem("snapdisco_v1",JSON.stringify(SCHOOLS));logCapture('factfind',{schools:SCHOOLS.length,complete:completeness().pct,totals:totals()});}
+function save(){localStorage.setItem("snapdisco_v1",JSON.stringify(SCHOOLS));}
 function load(){try{const d=localStorage.getItem("snapdisco_v1");return d?JSON.parse(d):null}catch(e){return null}}
 function inc(s){return s.d._inc!==false;}
 
@@ -461,9 +488,9 @@ function renderDays(){
 }
 
 /* ================= EDIT ================= */
-function updD(i,k,v){SCHOOLS[i].d[k]=v;save();renderStats();renderMatrixHeadPct();}
-function updBrk(i,k,se,v){SCHOOLS[i].d.brk[k][se]=v;save();renderStats();renderMatrixHeadPct();}
-function togDay(i,dy){SCHOOLS[i].d.days[dy]=!SCHOOLS[i].d.days[dy];save();renderMatrix();renderStats();renderDays();drawMap();}
+function updD(i,k,v){const s=SCHOOLS[i],old=s.d[k];s.d[k]=v;save();pushField(s.short,k,old,v);renderStats();renderMatrixHeadPct();}
+function updBrk(i,k,se,v){const s=SCHOOLS[i],old=s.d.brk[k][se];s.d.brk[k][se]=v;save();pushField(s.short,k+'.'+se,old,v);renderStats();renderMatrixHeadPct();}
+function togDay(i,dy){const s=SCHOOLS[i],old=daysCSV(s);s.d.days[dy]=!s.d.days[dy];save();pushField(s.short,'days',old,daysCSV(s));renderMatrix();renderStats();renderDays();drawMap();}
 function renderMatrixHeadPct(){ // light refresh of just the header % without rebuilding inputs (avoids losing focus)
   document.querySelectorAll('#mx thead th.sch:not(.corner)').forEach((th,idx)=>{
     const f=schoolFilled(SCHOOLS[idx]),pct=f.tot?Math.round(f.done/f.tot*100):0;
@@ -568,10 +595,11 @@ function dl(name,uri){const a=document.createElement("a");a.href=uri;a.download=
 
 /* ================= BOOT ================= */
 function renderAll(){renderMatrix();renderChips();renderStats();renderDays();drawMap();}
-function startApp(){
+async function startApp(){
   document.getElementById("who").innerHTML=GUSER.name?`<b>${esc(GUSER.name)}</b>${esc(GUSER.company||'')}`:'';
-  initMap();renderAll();refreshMatrix();
   logNow('session_start',{ua:navigator.userAgent.slice(0,120),tz:Intl.DateTimeFormat().resolvedOptions().timeZone});
+  await hydrate();          // pull the shared record so everyone sees the same data
+  initMap();renderAll();refreshMatrix();
 }
 
 /* ---- gate flow ---- */
