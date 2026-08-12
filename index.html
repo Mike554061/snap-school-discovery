@@ -10,11 +10,12 @@
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <style>
   :root{
-    --ink:#14202b; --ink2:#1d2c3b; --ink3:#0f1922;
-    --grn:#12a150; --grn-d:#0c7d3d; --grn-soft:#8ff0b9; --grn-tint:#e7f7ee;
-    --amber:#e0872a;
-    --paper:#ffffff; --paper2:#f3f6f9; --paper3:#eaeef3;
-    --line:#dbe3ec; --txt:#14202b; --mut:#5b6b7b; --mut2:#8595a5;
+    /* SupplyNow company palette (cognac + cream) — var names kept, values swapped */
+    --ink:#1B1B1B; --ink2:#262626; --ink3:#141414;
+    --grn:#8A6D3B; --grn-d:#6E5528; --grn-soft:#E6C68E; --grn-tint:#F6F1E9;
+    --amber:#B4472E;
+    --paper:#FFFFFF; --paper2:#FCFBFA; --paper3:#F6F1E9;
+    --line:#E1DFD9; --txt:#1B1B1B; --mut:#6B6B6B; --mut2:#9A9187;
     --shadow:0 1px 2px rgba(20,32,43,.06),0 6px 20px rgba(20,32,43,.06);
     --radius:12px;
     --f:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
@@ -27,7 +28,7 @@
 
   /* ---------- GATE ---------- */
   #gate{position:fixed;inset:0;z-index:3000;background:var(--ink3);display:flex;align-items:center;justify-content:center;padding:20px;
-    background-image:radial-gradient(circle at 50% -10%,rgba(18,161,80,.18),transparent 60%)}
+    background-image:radial-gradient(circle at 50% -10%,rgba(138,109,59,.18),transparent 60%)}
   #gate .box{width:100%;max-width:400px;background:var(--ink);border:1px solid #2b3d4f;border-radius:16px;padding:30px 26px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.55)}
   .wm{display:inline-flex;align-items:center;gap:9px;margin-bottom:12px}
   .wm .mk{background:var(--grn);color:#fff;font-weight:900;font-size:16px;letter-spacing:.02em;padding:6px 11px;border-radius:9px}
@@ -544,7 +545,7 @@ async function drawMap(){
     const id='rl'+li;
     if(map.getSource(id)){map.removeLayer(id);map.removeSource(id);}
     map.addSource(id,{type:"geojson",data:{type:"Feature",geometry:{type:"LineString",coordinates:geo}}});
-    map.addLayer({id,type:"line",source:id,paint:{"line-color":"#12a150","line-width":3.5,"line-opacity":.7}});
+    map.addLayer({id,type:"line",source:id,paint:{"line-color":"#8A6D3B","line-width":3.5,"line-opacity":.7}});
     if(li>=5)break;
   }
   const pts=[[ORIGIN.lng,ORIGIN.lat],...SCHOOLS.filter(s=>inc(s)&&s.lat!=null).map(s=>[s.lng,s.lat])];
