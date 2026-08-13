@@ -55,7 +55,7 @@
   .wrap{max-width:1560px;margin:0 auto;padding:18px}
 
   /* ---------- STATS ---------- */
-  .stats{display:grid;grid-template-columns:1.5fr repeat(6,1fr);gap:11px;margin-bottom:16px}
+  .stats{display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:11px;margin-bottom:16px}
   @media(max-width:1200px){.stats{grid-template-columns:repeat(4,1fr)}}
   @media(max-width:680px){.stats{grid-template-columns:repeat(2,1fr)}}
   .stat{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px;box-shadow:var(--shadow)}
@@ -200,17 +200,6 @@
 
   <div class="stats" id="stats"></div>
 
-  <div class="toolbar">
-    <details class="asum" id="asum">
-      <summary>Routing assumptions (edit to model)</summary>
-      <div class="body">
-        <div><label>Stop service time</label><div class="fld"><input id="a_svc" type="number" step="5" value="20"><span class="u">min / stop</span></div></div>
-        <div><label>Fallback speed</label><div class="fld"><input id="a_mph" type="number" step="1" value="32"><span class="u">mph (if drive API down)</span></div></div>
-        <div class="note">Drive time between each school comes from live road-network routing (OSRM). Stop time = minutes per location × stops. <b>No pricing is shown</b> — this is a discovery &amp; footprint tool. Weekly totals roll up each school's captured delivery days (Mon–Fri).</div>
-      </div>
-    </details>
-  </div>
-
   <!-- ============ DISCOVERY MATRIX ============ -->
   <div class="panel">
     <div class="head">
@@ -224,23 +213,9 @@
     <div class="mxwrap">
       <table class="mx" id="mx"></table>
     </div>
-    <div class="note" style="padding:0 16px 12px">Every field saves to the <b>shared SupplyNow record</b> — visible to anyone who logs in, on any device, any time. Every change (including deletions) is <b>permanently logged</b> with its before &amp; after value. Fill what you learn on each call; KPIs update live. Use <b>Export</b> for a point-in-time snapshot.</div>
+    <div class="note" style="padding:0 16px 12px">Your entries save automatically — you can come back and update them anytime.</div>
   </div>
 
-  <!-- ============ ROUTE VISUAL ============ -->
-  <div class="panel">
-    <div class="head">
-      <h2>Route footprint &amp; drive times</h2>
-      <div class="chips" id="dayChips"></div>
-    </div>
-    <div class="rgrid">
-      <div id="map"></div>
-      <div class="days" id="days"></div>
-    </div>
-    <p class="note" id="milesnote" style="padding:0 16px 14px"></p>
-  </div>
-
-  <p class="note">Drive times are live road-network estimates. Each delivery day is a round trip from the SNAP depot (2275 E 55th St, Cleveland) out to the schools and back, sequenced nearest-neighbor. Stop time is a flat allowance per location, editable above. Everything you capture saves to the shared record automatically; use Export for a snapshot.</p>
 
 </div>
 
@@ -272,7 +247,20 @@ function pushField(short,field,oldv,newv){
 function daysCSV(s){return DAYS.filter(d=>s.d.days[d]).join(',');}
 async function hydrate(){
   if(!SERVER)return;
-  try{const r=await jsonp({mode:'summit_get',site:SITE});if(r&&r.ok&&r.state)applyState(r.state);}catch(e){}
+  try{const r=await jsonp({mode:'summit_get',site:SITE});if(r&&r.ok&&r.state){window.__SRVKEYS=new Set(Object.keys(r.state));applyState(r.state);}}catch(e){}
+}
+/* Commit any pre-filled/current field value that isn't in the shared store yet,
+   so nothing already showing can disappear on a later reload. Only writes MISSING
+   keys — never overwrites a real edit. */
+function backfill(){
+  if(!SERVER||!GUSER.email)return;
+  const sk=window.__SRVKEYS||new Set();
+  SCHOOLS.forEach(s=>{
+    const d=s.d, put=(k,v)=>{if(v==null||v==='')return;const key=s.short+'|'+k;if(sk.has(key))return;sk.add(key);jsonp({mode:'summit_set',site:SITE,email:GUSER.email,key,val:String(v),old:'',school:s.short,field:k});};
+    ['contact','phone','email','wStart','wEnd','notes','closures','plan'].forEach(k=>put(k,d[k]));
+    put('days',DAYS.filter(x=>d.days[x]).join(','));
+    ['tg','win','spr','sum'].forEach(b=>{put(b+'.s',d.brk[b].s);put(b+'.e',d.brk[b].e);});
+  });
 }
 function applyState(state){
   SCHOOLS.forEach(s=>{
@@ -406,15 +394,11 @@ function mn(min){min=Math.round(min);if(min<60)return min+'m';const h=Math.floor
 function renderStats(){
   const t=totals(),c=completeness();
   document.getElementById("stats").innerHTML=[
-    {hero:1,n:mn(t.total),l:"Total route time / wk",sub:`${hrs(t.drive)}h drive · ${hrs(t.stop)}h stops`},
-    {n:num(t.schools),l:"Schools"},
+    {hero:1,n:num(t.schools),l:"Schools",sub:"Summit Academy campuses"},
     {n:num(t.enroll),l:"Enrollment",sub:"≈ meals / day"},
-    {n:num(t.stops),l:"Delivery stops / wk"},
-    {n:mn(t.drive),l:"Drive time / wk",sub:`~${num(t.dist)} mi`},
-    {n:mn(t.stop),l:"Stop time / wk",sub:`${A.svc} min × ${t.stops}`},
+    {n:num(t.stops),l:"Deliveries / week"},
     {n:c.pct+"%",l:"Discovery captured",sub:`${c.done}/${c.tot} fields`},
   ].map(s=>`<div class="stat ${s.hero?'hero':''}"><div class="n">${s.n}</div><div class="l">${s.l}</div>${s.sub?`<div class="sub">${s.sub}</div>`:''}</div>`).join("");
-  document.getElementById("milesnote").innerHTML=`Each delivery day starts &amp; ends at the <b>SNAP depot (2275 E 55th St, Cleveland)</b> — a ~77–96 min haul each way to the Youngstown/Warren cluster. Across <b>${t.days}</b> delivery day(s)/week: ~<b>${num(t.dist)} miles</b> and ~<b>${mn(t.drive)}</b> driving (incl. depot round-trip), plus <b>${mn(t.stop)}</b> of stop time (${A.svc} min × ${t.stops} stops) = <b>${mn(t.total)}</b> total route time.${MAT.live?' <span style="color:var(--grn-d)">Live road-network drive times.</span>':' <span style="color:var(--amber)">Using baked-in drive estimates (live routing unavailable).</span>'}`;
 }
 
 function cell(s,f){
@@ -458,13 +442,13 @@ function renderMatrix(){
 }
 
 function renderChips(){
-  const el=document.getElementById("dayChips");
+  const el=document.getElementById("dayChips");if(!el)return;
   el.innerHTML='<span class="lbl">Show days:</span>'+DAYS.map(d=>`<span class="chip ${DAYON[d]?'on':''}" onclick="toggleShow('${d}')">${d}</span>`).join('');
 }
 function toggleShow(d){DAYON[d]=!DAYON[d];renderChips();renderDays();drawMap();}
 
 function renderDays(){
-  const el=document.getElementById("days");el.innerHTML="";
+  const el=document.getElementById("days");if(!el)return;el.innerHTML="";
   let any=false;
   DAYS.forEach(d=>{
     if(!DAYON[d])return;
@@ -501,7 +485,6 @@ function renderMatrixHeadPct(){ // light refresh of just the header % without re
 }
 function resetAll(){if(confirm("Clear all captured discovery data and reset the schools?")){SCHOOLS=SEED.map(s=>Object.assign({},s,{d:newDisco()}));DAYS.forEach(d=>DAYON[d]=true);save();renderAll();logNow('reset',{});}}
 
-['svc','mph'].forEach(k=>{const m={svc:'a_svc',mph:'a_mph'};document.getElementById(m[k]).addEventListener('input',e=>{A[k]=+e.target.value||A[k];renderStats();renderDays();logCapture('assumptions',A);});});
 
 /* ================= MAP ================= */
 function initMap(){
@@ -521,6 +504,7 @@ async function osrmRoute(list){
   return list.map(s=>[s.lng,s.lat]);
 }
 async function drawMap(){
+  if(!document.getElementById("map"))return;
   if(!map||!map.isStyleLoaded()){setTimeout(drawMap,150);return;}
   markers.forEach(m=>m.remove());markers=[];
   ['rl1','rl2','rl3','rl4','rl5'].forEach(id=>{if(map.getLayer(id))map.removeLayer(id);if(map.getSource(id))map.removeSource(id);});
@@ -582,25 +566,21 @@ function exportCSV(){
   line('Spring break',s=>[s.d.brk.spr.s,s.d.brk.spr.e].filter(Boolean).join(' → '));
   line('Summer break',s=>[s.d.brk.sum.s,s.d.brk.sum.e].filter(Boolean).join(' → '));
   line('Holiday delivery plan',s=>s.d.plan);
-  const t=totals();
-  rows.push([]);rows.push(['— Route summary (no pricing) —']);
-  rows.push(['Delivery days/wk',t.days]);rows.push(['Stops/wk',t.stops]);
-  rows.push(['Drive time/wk (min)',Math.round(t.drive)]);rows.push(['Stop time/wk (min)',Math.round(t.stop)]);
-  rows.push(['Total route time/wk (min)',Math.round(t.total)]);rows.push(['Weekly miles',Math.round(t.dist)]);
   const csv=rows.map(r=>r.map(c=>`"${String(c==null?'':c).replace(/"/g,'""')}"`).join(',')).join('\n');
   dl('summit-academy-discovery.csv','data:text/csv;charset=utf-8,'+encodeURIComponent(csv));
-  logNow('export_csv',t);
+  logNow('export_csv',{});
 }
-function exportJSON(){const payload={user:GUSER,assumptions:A,totals:totals(),completeness:completeness(),schools:SCHOOLS};dl('summit-academy-discovery.json','data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(payload,null,2)));logNow('export_json',totals());}
+function exportJSON(){const payload={user:GUSER,completeness:completeness(),schools:SCHOOLS.map(s=>({short:s.short,name:s.name,address:s.address,city:s.city,zip:s.zip,enroll:s.enroll,discovery:s.d}))};dl('summit-academy-discovery.json','data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(payload,null,2)));logNow('export_json',{});}
 function dl(name,uri){const a=document.createElement("a");a.href=uri;a.download=name;document.body.appendChild(a);a.click();a.remove();}
 
 /* ================= BOOT ================= */
-function renderAll(){renderMatrix();renderChips();renderStats();renderDays();drawMap();}
+function renderAll(){renderMatrix();renderStats();}
 async function startApp(){
   document.getElementById("who").innerHTML=GUSER.name?`<b>${esc(GUSER.name)}</b>${esc(GUSER.company||'')}`:'';
   logNow('session_start',{ua:navigator.userAgent.slice(0,120),tz:Intl.DateTimeFormat().resolvedOptions().timeZone});
   await hydrate();          // pull the shared record so everyone sees the same data
-  initMap();renderAll();refreshMatrix();
+  renderAll();
+  backfill();               // commit any pre-filled values so nothing disappears on reload
 }
 
 /* ---- gate flow ---- */
