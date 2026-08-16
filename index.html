@@ -169,18 +169,13 @@
   <div class="box">
     <div class="wm"><span class="mk">SNAP</span><span class="co">SupplyNow</span></div>
     <h1 class="disp">School Delivery Discovery</h1>
-    <div class="sub">A working fact-find for the Summit Academy schools — Youngstown &amp; Warren, OH. Enter your details to access.</div>
+    <div class="sub">A quick schedule fact-find for the Summit Academy schools. Enter your name &amp; email to open it.</div>
     <div id="gstep1">
-      <div class="row2"><input id="gName" placeholder="Full name" autocomplete="name"><input id="gCo" placeholder="Company" autocomplete="organization"></div>
-      <input id="gEmail" placeholder="you@company.com" type="email" autocomplete="email">
-      <input id="gPhone" placeholder="Mobile (optional)" type="tel" autocomplete="tel">
-      <button id="gSend">Send access code</button>
-    </div>
-    <div id="gstep2" style="display:none">
-      <div class="sub">Enter the 6-digit code sent to <b id="gEmailShow"></b>.</div>
-      <input id="gCode" placeholder="6-digit code" inputmode="numeric" maxlength="6">
-      <button id="gVerify">Verify &amp; enter</button>
-      <span id="gBack">← use different details</span>
+      <input id="gName" placeholder="Your name" autocomplete="name">
+      <input id="gEmail" placeholder="you@summitacademies.org" type="email" autocomplete="email">
+      <input id="gCo" type="hidden" value="Summit Academy">
+      <input id="gPhone" type="hidden" value="">
+      <button id="gSend">Open the schedule →</button>
     </div>
     <div id="gMsg"></div>
     <div class="gfine">Property of SupplyNow Solutions · SNAP</div>
@@ -591,24 +586,16 @@ async function startApp(){
   if(DEV){GUSER={email:'dev@local',name:'Preview',company:'',phone:''};unlock();return;}
   let tok=null;try{tok=JSON.parse(localStorage.getItem('snapdisco_token')||'null');}catch(e){}
   if(tok&&tok.email&&(Date.now()-tok.ts)<30*864e5){GUSER=tok;unlock();return;}
-  document.getElementById('gSend').onclick=async()=>{
+  document.getElementById('gSend').onclick=()=>{
     const email=document.getElementById('gEmail').value.trim();
-    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){gmsg('Enter a valid email');return;}
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){gmsg('Please enter a valid email to continue');return;}
     GUSER={email,name:document.getElementById('gName').value.trim(),company:document.getElementById('gCo').value.trim(),phone:document.getElementById('gPhone').value.trim()};
-    gmsg('Sending…',true);
-    const r=await jsonp({mode:'code',site:SITE,email,name:GUSER.name,company:GUSER.company,phone:GUSER.phone});
+    try{localStorage.setItem('snapdisco_token',JSON.stringify(Object.assign({ts:Date.now()},GUSER)));}catch(e){}
     jsonp({mode:'log',site:SITE,email,type:SITE+':contact',data:JSON.stringify(GUSER)});
-    if(r.ok){document.getElementById('gEmailShow').textContent=email;document.getElementById('gstep1').style.display='none';document.getElementById('gstep2').style.display='';gmsg('Code sent — check your email.',true);}
-    else gmsg(r.error||'Could not send code');
+    logNow('login',GUSER);
+    unlock();
   };
-  document.getElementById('gVerify').onclick=async()=>{
-    const c=document.getElementById('gCode').value.trim();if(c.length<6){gmsg('Enter the 6-digit code');return;}
-    gmsg('Verifying…',true);
-    const r=await jsonp({mode:'verify',site:SITE,email:GUSER.email,code:c});
-    if(r.ok){try{localStorage.setItem('snapdisco_token',JSON.stringify(Object.assign({ts:Date.now()},GUSER)));}catch(e){}logNow('login',GUSER);unlock();}
-    else gmsg(r.error||'Wrong code');
-  };
-  document.getElementById('gBack').onclick=()=>{document.getElementById('gstep2').style.display='none';document.getElementById('gstep1').style.display='';gmsg('');};
+  document.getElementById('gEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('gSend').click();});
 })();
 </script>
 </body>
