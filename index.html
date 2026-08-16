@@ -298,7 +298,7 @@ function newDisco(){return{contact:'',phone:'',email:'',
   brk:{tg:{s:'',e:''},win:{s:'',e:''},spr:{s:'',e:''},sum:{s:'',e:''}},plan:'',_inc:true};}
 
 const SEED=[
-  {short:'YOUMID',name:'SA Youngstown',address:'144 N. Schenley Avenue',city:'Youngstown',zip:'44509',enroll:117,lat:41.105365,lng:-80.700066},
+  {short:'YOUMID',name:'SA Youngstown',address:'5740 Patriot Blvd',city:'Austintown',zip:'44515',enroll:117,lat:41.120112,lng:-80.77032,start:'Starts Sep 8'},
   {short:'YOUSEC',name:'SA Secondary School — Youngstown',address:'2800 Shady Run Road',city:'Youngstown',zip:'44502',enroll:91,lat:41.071375,lng:-80.634213},
   {short:'WARELE',name:'SA Community School — Warren',address:'2106 Arbor Avenue SE',city:'Warren',zip:'44484',enroll:105,lat:41.220504,lng:-80.786193},
   {short:'WARMID',name:'SA School for Alternative Learners — Warren (Middle & Secondary)',address:'1461 Moncrest Drive NW',city:'Warren',zip:'44485',enroll:74,lat:41.248889,lng:-80.840528},
@@ -421,7 +421,7 @@ function renderMatrix(){
   let h=`<thead><tr><th class="sch corner">Discovery field</th>`;
   SCHOOLS.forEach((s)=>{
     const f=schoolFilled(s),pct=f.tot?Math.round(f.done/f.tot*100):0;
-    h+=`<th class="sch"><span class="badge">${esc(s.short)}</span><div class="nm">${esc(s.name)}</div><div class="ad">${esc(s.address)}<br>${esc(s.city)}, OH ${esc(s.zip)}</div><div class="en">${num(s.enroll)} enrolled</div><div class="prog"><i style="width:${pct}%"></i></div><div class="pct">${pct}% captured</div></th>`;
+    h+=`<th class="sch"><span class="badge">${esc(s.short)}</span><div class="nm">${esc(s.name)}</div><div class="ad">${esc(s.address)}<br>${esc(s.city)}, OH ${esc(s.zip)}</div><div class="en">${num(s.enroll)} enrolled${s.start?` · <span style="color:var(--grn-d)">${esc(s.start)}</span>`:''}</div><div class="prog"><i style="width:${pct}%"></i></div><div class="pct">${pct}% captured</div></th>`;
   });
   h+=`</tr></thead><tbody>`;
   SECTIONS.forEach(sec=>{
